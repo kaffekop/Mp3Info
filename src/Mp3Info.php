@@ -327,6 +327,7 @@ class Mp3Info {
         } while (ftell($fp) <= $header_seek_pos);
 
         if (!isset($header_bytes) || $header_bytes[0] !== 0xFF || (($header_bytes[1] >> 5) & 0b111) != 0b111) {
+            print_r($this);exit;
             throw new \Exception('At '.$pos
                 .'(0x'.dechex($pos).') should be a frame header!');
         }
@@ -344,8 +345,12 @@ class Mp3Info {
             case 0b11: $this->layerVersion = self::LAYER_1; break;
         }
 
-        $this->bitRate = self::$_bitRateTable[$this->codecVersion][$this->layerVersion][$header_bytes[2] >> 4];
-        $this->sampleRate = self::$_sampleRateTable[$this->codecVersion][($header_bytes[2] >> 2) & 0b11];
+        if (isset(self::$_bitRateTable[$this->codecVersion][$this->layerVersion][$header_bytes[2] >> 4])) {
+            $this->bitRate = self::$_bitRateTable[$this->codecVersion][$this->layerVersion][$header_bytes[2] >> 4];
+        }
+        if (isset(self::$_sampleRateTable[$this->codecVersion][($header_bytes[2] >> 2) & 0b11])) {
+            $this->sampleRate = self::$_sampleRateTable[$this->codecVersion][($header_bytes[2] >> 2) & 0b11];
+        }
 
         switch ($header_bytes[3] >> 6) {
             case 0b00: $this->channel = self::STEREO; break;
@@ -387,7 +392,8 @@ class Mp3Info {
             $this->_cbrFrameSize = floor(144 * $this->bitRate / $this->sampleRate + ($header_bytes[2] >> 1 & 0b1));
         }
 
-        fseek($fp, $pos + $this->_cbrFrameSize);
+        $gotoPos = (int)($pos + $this->_cbrFrameSize);
+        fseek($fp, $gotoPos);
 
         return isset($this->vbrProperties['frames']) ? $this->vbrProperties['frames'] : null;
     }
