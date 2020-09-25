@@ -279,6 +279,10 @@ class Mp3Info {
              */
             $framesCount = $this->readMpegFrame($fp);
 
+            // pre(PHP_EOL.'fc:'.$framesCount);
+            // pre('as:'.$audioSize);
+            // pre('_cbrFrameSize:'. $this->_cbrFrameSize);exit;
+
             $this->_framesCount = $framesCount !== null
                 ? $framesCount
                 : ceil($audioSize / $this->_cbrFrameSize);
@@ -327,14 +331,13 @@ class Mp3Info {
         } while (ftell($fp) <= $header_seek_pos);
 
         if (!isset($header_bytes) || $header_bytes[0] !== 0xFF || (($header_bytes[1] >> 5) & 0b111) != 0b111) {
-            print_r($this);exit;
             throw new \Exception('At '.$pos
-                .'(0x'.dechex($pos).') should be a frame header!');
+                .'(0x'.dechex($pos).') should be a frame header!' . PHP_EOL . print_r($this, true));
         }
 
         switch ($header_bytes[1] >> 3 & 0b11) {
             case 0b00: $this->codecVersion = self::MPEG_25; break;
-            case 0b01: $this->codecVersion = self::CODEC_UNDEFINED; break;
+            case 0b01: $this->codecVersion = self::MPEG_25; break;  // CODEC_UNDEFINED ?
             case 0b10: $this->codecVersion = self::MPEG_2; break;
             case 0b11: $this->codecVersion = self::MPEG_1; break;
         }
@@ -343,14 +346,31 @@ class Mp3Info {
             case 0b01: $this->layerVersion = self::LAYER_3; break;
             case 0b10: $this->layerVersion = self::LAYER_2; break;
             case 0b11: $this->layerVersion = self::LAYER_1; break;
+            // use LAYER_1 if nothing found
+            case 0: $this->layerVersion = self::LAYER_1; break;
         }
 
-        if (isset(self::$_bitRateTable[$this->codecVersion][$this->layerVersion][$header_bytes[2] >> 4])) {
-            $this->bitRate = self::$_bitRateTable[$this->codecVersion][$this->layerVersion][$header_bytes[2] >> 4];
-        }
-        if (isset(self::$_sampleRateTable[$this->codecVersion][($header_bytes[2] >> 2) & 0b11])) {
-            $this->sampleRate = self::$_sampleRateTable[$this->codecVersion][($header_bytes[2] >> 2) & 0b11];
-        }
+        /**
+         * bitRate data
+         */
+        // echo PHP_EOL . 'codecVersion:' . $this->codecVersion . PHP_EOL . '-----';
+        // echo PHP_EOL . 'layerVersion: ' . $this->layerVersion;
+        // echo PHP_EOL . 'header_bytes: ';
+        // pre(($header_bytes[2] >> 4));
+        // pre(self::$_bitRateTable[$this->codecVersion]);
+        // exit;
+        $this->bitRate = self::$_bitRateTable[$this->codecVersion][$this->layerVersion][$header_bytes[2] >> 4];
+        // pre($this->bitRate);exit;
+
+        /**
+         * sampleRate data
+         */
+        // echo PHP_EOL . 'codecVersion:' . $this->codecVersion . PHP_EOL;
+        // echo 'header_bytes:';pre(($header_bytes[2] >> 2) & 0b11);
+        // pre(self::$_sampleRateTable[$this->codecVersion]);
+        // exit;
+        $this->sampleRate = self::$_sampleRateTable[$this->codecVersion][($header_bytes[2] >> 2) & 0b11];
+        // pre($this->sampleRate);exit;
 
         switch ($header_bytes[3] >> 6) {
             case 0b00: $this->channel = self::STEREO; break;
